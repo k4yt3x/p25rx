@@ -19,6 +19,9 @@ mod test {
     #[test]
     fn verify_sample_rate() {
         // Verify the sample rate matches value expected by p25.rs.
-        assert_eq!(super::BASEBAND_SAMPLE_RATE as usize, p25::consts::SAMPLE_RATE);
+        assert_eq!(
+            super::BASEBAND_SAMPLE_RATE as usize,
+            p25::consts::SAMPLE_RATE
+        );
     }
 }

@@ -1,14 +1,11 @@
 //! Voice frame decoding and audio output.
 
-use std::io::Write;
-use std::sync::mpsc::Receiver;
+use std::{io::Write, sync::mpsc::Receiver};
 
-use imbe::consts::SAMPLES_PER_FRAME;
-use imbe::decode::ImbeDecoder;
-use imbe::frame::ReceivedFrame;
-use slice_mip::MapInPlace;
+use imbe::{consts::SAMPLES_PER_FRAME, decode::ImbeDecoder, frame::ReceivedFrame};
 use p25::voice::frame::VoiceFrame;
 use slice_cast;
+use slice_mip::MapInPlace;
 
 /// Messages for `AudioTask`.
 pub enum AudioEvent {
@@ -30,8 +27,8 @@ impl<W: Write> AudioTask<W> {
     /// Create a new `AudioTask` with the given audio output and event channel.
     pub fn new(audio: AudioOutput<W>, events: Receiver<AudioEvent>) -> Self {
         AudioTask {
-            audio: audio,
-            events: events,
+            audio,
+            events,
         }
     }
 
@@ -41,9 +38,9 @@ impl<W: Write> AudioTask<W> {
             match self.events.recv().expect("unable to receive audio event") {
                 AudioEvent::VoiceFrame(vf) => self.audio.play(&vf),
                 AudioEvent::EndTransmission => {
-                   self.audio.flush();
-                   self.audio.reset();
-                },
+                    self.audio.flush();
+                    self.audio.reset();
+                }
             }
         }
     }
@@ -61,7 +58,7 @@ impl<W: Write> AudioOutput<W> {
     /// Create a new `AudioOutput` over the given stream.
     pub fn new(stream: W) -> Self {
         AudioOutput {
-            stream: stream,
+            stream,
             imbe: ImbeDecoder::new(),
         }
     }
@@ -81,9 +78,9 @@ impl<W: Write> AudioOutput<W> {
         // Reduce volume to a generally sane level.
         samples.map_in_place(|&s| s / 8192.0);
 
-        self.stream.write_all(unsafe {
-            slice_cast::cast(&samples[..])
-        }).expect("unable to write audio samples");
+        self.stream
+            .write_all(unsafe { slice_cast::cast(&samples[..]) })
+            .expect("unable to write audio samples");
     }
 
     /// Flush the wrapped stream.

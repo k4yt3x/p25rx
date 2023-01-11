@@ -1,11 +1,8 @@
 //! Receiver policy state machine.
 
-use p25::message::nid::NetworkId;
-use p25::message::nid::DataUnit::*;
+use p25::message::nid::{DataUnit::*, NetworkId};
 
-use self::PolicyEvent::*;
-use self::ReceiverState::*;
-use self::StateChange::*;
+use self::{PolicyEvent::*, ReceiverState::*, StateChange::*};
 
 /// Action that the receiver should take.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -71,18 +68,24 @@ impl ReceiverPolicy {
     pub fn handle_elapsed(&mut self, samples: usize) -> Option<PolicyEvent> {
         // FIXME: non-lexical borrowing
         let next = match self.state {
-            Control(ref mut t) => if t.expired(samples) {
-                t.reset();
-                Event(ChooseTalkgroup)
-            } else {
-                NoChange
-            },
-            Traffic(ref mut t, _) | Paused(ref mut t) => if t.expired(samples) {
-                debug!("watchdog timeout");
-                Event(ReturnControl)
-            } else {
-                NoChange
-            },
+            Control(ref mut t) => {
+                if t.expired(samples) {
+                    t.reset();
+                    Event(ChooseTalkgroup)
+                }
+                else {
+                    NoChange
+                }
+            }
+            Traffic(ref mut t, _) | Paused(ref mut t) => {
+                if t.expired(samples) {
+                    debug!("watchdog timeout");
+                    Event(ReturnControl)
+                }
+                else {
+                    NoChange
+                }
+            }
         };
 
         self.handle_change(next)
@@ -102,7 +105,7 @@ impl ReceiverPolicy {
                 VoiceHeader | VoiceLCFrameGroup | VoiceCCFrameGroup => {
                     debug!("receiving voice message");
                     Change(self.state_traffic(false))
-                },
+                }
                 // Ignore spurious TSBKs that occur immediately after switching to a
                 // traffic channel. The NID for these gets decoded from the control
                 // channel backlog samples buffered by librtlsdr, but an unrecoverable
@@ -115,21 +118,21 @@ impl ReceiverPolicy {
                 VoiceLCTerminator | VoiceSimpleTerminator => {
                     debug!("pausing for voice message continuation");
                     Change(Paused(Timer::new(self.pause_time)))
-                },
+                }
                 VoiceHeader | VoiceLCFrameGroup | VoiceCCFrameGroup => {
                     // Let the watchdog know that voice packets are still being received.
                     t.reset();
                     NoChange
-                },
+                }
                 _ => NoChange,
             },
             Paused(..) => match nid.data_unit {
                 VoiceHeader | VoiceLCFrameGroup | VoiceCCFrameGroup => {
                     debug!("resuming voice message");
                     Change(self.state_traffic(true))
-                },
+                }
                 _ => NoChange,
-            }
+            },
         };
 
         self.handle_change(next)
@@ -146,7 +149,7 @@ impl ReceiverPolicy {
             Traffic(..) | Paused(..) => {
                 debug!("voice message terminated");
                 Event(ReturnControl)
-            },
+            }
         })
     }
 
@@ -166,7 +169,7 @@ impl ReceiverPolicy {
             Change(s) => {
                 self.state = s;
                 None
-            },
+            }
             Event(e) => Some(e),
             NoChange => None,
         }
@@ -196,7 +199,7 @@ impl Timer {
     /// Create a new `Timer` with the given timeout.
     pub fn new(max: usize) -> Self {
         Timer {
-            max: max,
+            max,
             cur: 0,
         }
     }
@@ -216,8 +219,9 @@ impl Timer {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use p25::message::nid::NetworkAccessCode;
+
+    use super::*;
 
     #[test]
     fn test_policy() {
@@ -233,10 +237,20 @@ mod test {
 
         p.enter_traffic();
         assert_eq!(p.handle_elapsed(5), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceLCTerminator)), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceSimpleTerminator)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceLCTerminator
+            )),
+            None
+        );
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceSimpleTerminator
+            )),
+            None
+        );
         assert_eq!(p.handle_elapsed(15), Some(ReturnControl));
 
         p.enter_control();
@@ -245,20 +259,36 @@ mod test {
 
         p.enter_traffic();
         assert_eq!(p.handle_elapsed(5), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceHeader)), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceLCFrameGroup)), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceCCFrameGroup)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(NetworkAccessCode::Default, VoiceHeader)),
+            None
+        );
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceLCFrameGroup
+            )),
+            None
+        );
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceCCFrameGroup
+            )),
+            None
+        );
         assert_eq!(p.handle_elapsed(19), None);
         assert_eq!(p.handle_elapsed(1), Some(ReturnControl));
         p.enter_control();
 
         p.enter_traffic();
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, TrunkingSignaling)),
-            Some(Resync));
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                TrunkingSignaling
+            )),
+            Some(Resync)
+        );
 
         p.enter_traffic();
         assert_eq!(p.handle_elapsed(5), None);
@@ -267,51 +297,104 @@ mod test {
 
         p.enter_traffic();
         assert_eq!(p.handle_elapsed(5), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceHeader)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(NetworkAccessCode::Default, VoiceHeader)),
+            None
+        );
         assert_eq!(p.handle_call_term(), Some(ReturnControl));
         p.enter_control();
 
         p.enter_traffic();
         assert_eq!(p.handle_elapsed(5), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceHeader)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(NetworkAccessCode::Default, VoiceHeader)),
+            None
+        );
         assert_eq!(p.handle_elapsed(19), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceLCFrameGroup)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceLCFrameGroup
+            )),
+            None
+        );
         assert_eq!(p.handle_elapsed(19), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceCCFrameGroup)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceCCFrameGroup
+            )),
+            None
+        );
         assert_eq!(p.handle_elapsed(19), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceSimpleTerminator)), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceLCTerminator)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceSimpleTerminator
+            )),
+            None
+        );
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceLCTerminator
+            )),
+            None
+        );
         assert_eq!(p.handle_elapsed(5), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceSimpleTerminator)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceSimpleTerminator
+            )),
+            None
+        );
         assert_eq!(p.handle_elapsed(24), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceLCTerminator)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceLCTerminator
+            )),
+            None
+        );
         assert_eq!(p.handle_elapsed(21), Some(ReturnControl));
         p.enter_control();
 
         p.enter_traffic();
         assert_eq!(p.handle_elapsed(5), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceHeader)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(NetworkAccessCode::Default, VoiceHeader)),
+            None
+        );
         assert_eq!(p.handle_elapsed(19), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceLCFrameGroup)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceLCFrameGroup
+            )),
+            None
+        );
         assert_eq!(p.handle_elapsed(19), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceCCFrameGroup)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceCCFrameGroup
+            )),
+            None
+        );
         assert_eq!(p.handle_elapsed(19), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceSimpleTerminator)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(
+                NetworkAccessCode::Default,
+                VoiceSimpleTerminator
+            )),
+            None
+        );
         assert_eq!(p.handle_elapsed(29), None);
-        assert_eq!(p.handle_nid(
-            NetworkId::new(NetworkAccessCode::Default, VoiceHeader)), None);
+        assert_eq!(
+            p.handle_nid(NetworkId::new(NetworkAccessCode::Default, VoiceHeader)),
+            None
+        );
         assert_eq!(p.handle_elapsed(19), None);
         assert_eq!(p.handle_elapsed(1), Some(ReturnControl));
     }

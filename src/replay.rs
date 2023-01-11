@@ -2,11 +2,9 @@
 
 use std::io::{Read, Write};
 
-use p25::message::receiver::MessageReceiver;
-use p25::stats::Stats;
-use slice_cast;
-
 use audio::AudioOutput;
+use p25::{message::receiver::MessageReceiver, stats::Stats};
+use slice_cast;
 
 pub struct ReplayReceiver<W: Write> {
     audio: AudioOutput<W>,
@@ -17,7 +15,7 @@ pub struct ReplayReceiver<W: Write> {
 impl<W: Write> ReplayReceiver<W> {
     pub fn new(audio: AudioOutput<W>) -> Self {
         ReplayReceiver {
-            audio: audio,
+            audio,
             msg: MessageReceiver::new(),
             stats: Stats::default(),
         }
@@ -51,7 +49,7 @@ impl<W: Write> ReplayReceiver<W> {
             match event {
                 Error(e) => self.stats.record_err(e),
                 VoiceFrame(vf) => self.audio.play(&vf),
-                _ => {},
+                _ => {}
             }
         }
     }

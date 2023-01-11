@@ -1,7 +1,6 @@
 //! Talkgroup collection and selection.
 
-use std::collections::hash_map::HashMap;
-use std::collections::HashSet;
+use std::collections::{hash_map::HashMap, HashSet};
 
 use fnv::FnvBuildHasher;
 use p25::voice::crypto::CryptoAlgorithm;
@@ -71,7 +70,9 @@ impl TalkgroupSelection {
     /// talkgroup ID and `freq` is the traffic channel center frequency (Hz). Otherwise,
     /// return `None` if no talkgroups are available.
     pub fn select_preempt(&mut self) -> Option<(u16, u32)> {
-        self.feats.max_score(&self.cur_preempt).map(|tg| self.select_tg(tg))
+        self.feats
+            .max_score(&self.cur_preempt)
+            .map(|tg| self.select_tg(tg))
     }
 
     /// Record that the given talkgroup is encrypted.
@@ -149,7 +150,8 @@ impl TalkgroupFeatures {
 
     /// Retrieve the oldest age over all talkgroups.
     fn oldest(&self) -> usize {
-        self.elapsed.wrapping_sub(self.age.values().cloned().min().unwrap_or(0))
+        self.elapsed
+            .wrapping_sub(self.age.values().cloned().min().unwrap_or(0))
     }
 
     /// Find the talkgroup with the highest score in the given candidate talkgroups.
@@ -168,13 +170,15 @@ impl TalkgroupFeatures {
             // Recent talkgroup gets a reward.
             let recent = if tg == self.recent { 1.0 } else { 0.0 };
 
-            self.prios.get(&tg).unwrap_or(&1.0) * self.weights.prio +
-            age * self.weights.age +
-            recent * self.weights.recent
+            self.prios.get(&tg).unwrap_or(&1.0) * self.weights.prio
+                + age * self.weights.age
+                + recent * self.weights.recent
         };
 
-        groups.iter().cloned()
-              .max_by(|&a, &b| score(a).partial_cmp(&score(b)).unwrap())
+        groups
+            .iter()
+            .cloned()
+            .max_by(|&a, &b| score(a).partial_cmp(&score(b)).unwrap())
     }
 }
 
@@ -248,8 +252,7 @@ mod test {
         let j = serde_json::to_string(&f).unwrap();
         assert_eq!(j, "{\"exclude\":true,\"filt\":[42]}");
 
-        let f: Filter = serde_json::from_str("{\"filt\": [1, 2, 3], \"exclude\": false}")
-                            .unwrap();
+        let f: Filter = serde_json::from_str("{\"filt\": [1, 2, 3], \"exclude\": false}").unwrap();
         assert!(!f.exclude);
         assert_eq!(f.filt.len(), 3);
         assert!(f.filt.contains(&1));
