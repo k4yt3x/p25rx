@@ -19,7 +19,7 @@ extern crate fnv;
 extern crate imbe;
 extern crate libc;
 extern crate mio;
-extern crate mio_more;
+extern crate mio_extras;
 extern crate moving_avg;
 extern crate num;
 extern crate p25;
@@ -49,6 +49,7 @@ use std::{
     sync::mpsc::channel,
 };
 
+use anyhow::Result;
 use clap::{App, Arg};
 use env_logger::{Builder, Env};
 use log::LevelFilter;
@@ -75,7 +76,7 @@ use replay::ReplayReceiver;
 use sdr::{ControlTask, ReadTask};
 use talkgroups::TalkgroupSelection;
 
-fn main() {
+fn main() -> Result<()> {
     let args = App::new("p25rx")
         .arg(
             Arg::with_name("verbose")
@@ -191,7 +192,7 @@ fn main() {
 
         recv.replay(&mut stream);
 
-        return;
+        return Ok(());
     }
 
     let ppm: i32 = args.value_of("ppm").unwrap().parse().expect("invalid ppm");
@@ -206,7 +207,7 @@ fn main() {
                 println!("{}: {}", idx, name.to_str().unwrap());
             }
 
-            return;
+            return Ok(());
         }
         s => s.parse().expect("invalid device index"),
     };
@@ -224,7 +225,7 @@ fn main() {
 
             println!("auto");
 
-            return;
+            return Ok(());
         }
         "auto" => {
             info!("enabling hardware AGC");
@@ -281,13 +282,13 @@ fn main() {
     let (tx_recv, rx_recv) = channel();
     let (tx_read, rx_read) = channel();
     let (tx_audio, rx_audio) = channel();
-    let (tx_hub, rx_hub) = mio_more::channel::channel();
+    let (tx_hub, rx_hub) = mio_extras::channel::channel();
 
     let policy = ReceiverPolicy::new(tgselect, watchdog, pause);
     let talkgroups = TalkgroupSelection::default();
 
     info!("starting HTTP server at http://{}", addr);
-    let mut hub = HubTask::new(rx_hub, tx_recv.clone(), &addr).expect("unable to start hub");
+    let mut hub = HubTask::new(rx_hub, tx_recv.clone(), &addr)?;
     let mut control = ControlTask::new(control, rx_ctl);
     let mut read = ReadTask::new(tx_read);
     let mut demod = DemodTask::new(rx_read, tx_hub.clone(), tx_recv.clone());
@@ -343,6 +344,8 @@ fn main() {
             audio.run();
         });
     });
+
+    Ok(())
 }
 
 /// Convert the given seconds into an amount of baseband samples.

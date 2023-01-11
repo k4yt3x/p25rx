@@ -2,9 +2,12 @@
 
 use std::io::{Read, Write};
 
-use audio::AudioOutput;
-use p25::{message::receiver::MessageReceiver, stats::Stats};
 use slice_cast;
+
+use crate::{
+    audio::AudioOutput,
+    p25::{message::receiver::MessageReceiver, stats::Stats},
+};
 
 pub struct ReplayReceiver<W: Write> {
     audio: AudioOutput<W>,

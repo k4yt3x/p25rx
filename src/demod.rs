@@ -6,20 +6,23 @@ use std::{
 };
 
 use collect_slice::CollectSlice;
-use consts::{BASEBAND_SAMPLE_RATE, BUF_SAMPLES};
 use demod_fm::FmDemod;
-use hub::HubEvent;
-use mio_more;
+use mio_extras;
 use moving_avg::MovingAverage;
 use num::{complex::Complex32, traits::Zero};
 use p25_filts::{BandpassFir, DecimFir};
 use pool::{Checkout, Pool};
-use recv::RecvEvent;
 use rtlsdr_iq::IQ;
 use slice_mip::MapInPlace;
 use static_decimate::Decimator;
 use static_fir::FirFilter;
 use throttle::Throttler;
+
+use crate::{
+    consts::{BASEBAND_SAMPLE_RATE, BUF_SAMPLES},
+    hub::HubEvent,
+    recv::RecvEvent,
+};
 
 /// Demodulates raw I/Q signal to C4FM baseband.
 pub struct DemodTask {
@@ -34,7 +37,7 @@ pub struct DemodTask {
     /// Channel for receiving I/Q sample chunks.
     reader: Receiver<Checkout<Vec<u8>>>,
     /// Channel for the hub.
-    hub: mio_more::channel::Sender<HubEvent>,
+    hub: mio_extras::channel::Sender<HubEvent>,
     /// Channel for sending baseband sample chunks.
     chan: Sender<RecvEvent>,
 }
@@ -43,7 +46,7 @@ impl DemodTask {
     /// Create a new `DemodTask` to communicate on the given channels.
     pub fn new(
         reader: Receiver<Checkout<Vec<u8>>>,
-        hub: mio_more::channel::Sender<HubEvent>,
+        hub: mio_extras::channel::Sender<HubEvent>,
         chan: Sender<RecvEvent>,
     ) -> Self {
         DemodTask {

@@ -2,7 +2,7 @@
 
 use std::sync::mpsc::{Receiver, Sender};
 
-use consts::{BUF_BYTES, BUF_COUNT};
+use crate::consts::{BUF_BYTES, BUF_COUNT};
 use pool::{Checkout, Pool};
 use rtlsdr_mt::{Controller, Reader};
 

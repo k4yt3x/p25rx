@@ -5,9 +5,7 @@ use std::{
     sync::mpsc::{Receiver, Sender},
 };
 
-use audio::AudioEvent;
-use hub::{HubEvent, StateEvent};
-use mio_more;
+use mio_extras;
 use p25::{
     message::receiver::MessageReceiver,
     stats::Stats,
@@ -17,11 +15,16 @@ use p25::{
     },
     voice::{control::LinkControlFields, crypto::CryptoAlgorithm},
 };
-use policy::{PolicyEvent, ReceiverPolicy};
 use pool::Checkout;
-use sdr::ControlTaskEvent;
-use talkgroups::TalkgroupSelection;
 use throttle::Throttler;
+
+use crate::{
+    audio::AudioEvent,
+    hub::{HubEvent, StateEvent},
+    policy::{PolicyEvent, ReceiverPolicy},
+    sdr::ControlTaskEvent,
+    talkgroups::TalkgroupSelection,
+};
 
 /// Messages for `RecvTask`.
 pub enum RecvEvent {
@@ -38,7 +41,7 @@ pub struct RecvTask {
     /// Receiver events.
     events: Receiver<RecvEvent>,
     /// Event streaming.
-    hub: mio_more::channel::Sender<HubEvent>,
+    hub: mio_extras::channel::Sender<HubEvent>,
     /// SDR control task.
     sdr: Sender<ControlTaskEvent>,
     /// Audio output task.
@@ -67,7 +70,7 @@ impl RecvTask {
     /// Create a new `RecvTask`.
     pub fn new(
         events: Receiver<RecvEvent>,
-        hub: mio_more::channel::Sender<HubEvent>,
+        hub: mio_extras::channel::Sender<HubEvent>,
         sdr: Sender<ControlTaskEvent>,
         audio: Sender<AudioEvent>,
         ctlfreq: u32,
