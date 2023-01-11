@@ -40,12 +40,12 @@ uhttp_status = "0.10.0"
 uhttp_uri = "0.5.1"
 uhttp_version = "0.6.0"
 
-imbe = {version = "1.0.0", git = "https://github.com/kchmck/imbe.rs"}
-p25 = {version = "1.0.0", git = "https://github.com/kchmck/p25.rs", features = ["ser"]}
-p25_filts = {version = "1.0.0", git = "https://github.com/kchmck/p25_filts.rs"}
-pool = {version = "0.1.3", git = "https://github.com/kchmck/pool"}
-static_decimate = {version = "1.0.0", git = "https://github.com/kchmck/static_decimate.rs"}
-throttle = {version = "1.0.0", git = "https://github.com/kchmck/throttle.rs"}
+imbe = {version = "1.0.0", git = "https://github.com/k4yt3x/imbe.rs"}
+p25 = {version = "1.0.0", git = "https://github.com/k4yt3x/p25.rs", features = ["ser"]}
+p25_filts = {version = "1.0.0", git = "https://github.com/k4yt3x/p25_filts.rs"}
+pool = {version = "0.1.3", git = "https://github.com/k4yt3x/pool"}
+static_decimate = {version = "1.0.0", git = "https://github.com/k4yt3x/static_decimate.rs"}
+throttle = {version = "1.0.0", git = "https://github.com/k4yt3x/throttle.rs"}
 
 [profile.release]
 panic = "abort"
