@@ -1,12 +1,25 @@
 [package]
-name = "p25rx"
-version = "1.0.0"
-authors = ["Mick Koch <mick@kochm.co>"]
-license = "GPLv2"
+authors = ["i@k4yt3x.com", "Mick Koch <mick@kochm.co>"]
+categories = ["command-line-utilities"]
+description = "Trunking-aware, RasPi-ready P25 receiver daemon using RTL-SDR"
 edition = "2021"
+homepage = "https://github.com/k4yt3x/p25rx"
+keywords = ["p25", "radio"]
+license = "GPL-2.0-only"
+name = "p25rx"
+readme = "README.md"
+repository = "https://github.com/k4yt3x/p25rx"
+version = "2.0.0"
+
+[profile.dev]
+opt-level = 3
+
+[profile.release]
+lto = true
+panic = "abort"
+strip = "symbols"
 
 [dependencies]
-
 anyhow = "1.0"
 arrayvec = "0.3"
 chan = "0.1"
@@ -43,14 +56,8 @@ uhttp_uri = "0.5"
 uhttp_version = "0.6"
 
 imbe = { version = "1.0.0", git = "https://github.com/k4yt3x/imbe.rs" }
-p25 = { version = "1.0.0", git = "https://github.com/k4yt3x/p25.rs", features = [
-  "ser",
-] }
+p25 = { version = "1.0.0", git = "https://github.com/k4yt3x/p25.rs", features = [ "ser"] }
 p25_filts = { version = "1.0.0", git = "https://github.com/k4yt3x/p25_filts.rs" }
 pool = { version = "0.1.3", git = "https://github.com/k4yt3x/pool" }
 static_decimate = { version = "1.0.0", git = "https://github.com/k4yt3x/static_decimate.rs" }
 throttle = { version = "1.0.0", git = "https://github.com/k4yt3x/throttle.rs" }
-
-[profile.release]
-panic = "abort"
-lto = true
