@@ -50,7 +50,7 @@ use std::{
 };
 
 use anyhow::Result;
-use clap::{App, Arg};
+use clap::Parser;
 use env_logger::{Builder, Env};
 use log::LevelFilter;
 use rtlsdr_mt::TunerGains;
@@ -76,96 +76,67 @@ use replay::ReplayReceiver;
 use sdr::{ControlTask, ReadTask};
 use talkgroups::TalkgroupSelection;
 
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// enable verbose logging (pass twice to be extra verbose)
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    verbose: u8,
+
+    /// ppm frequency adjustment
+    #[arg(short, long)]
+    ppm: i32,
+
+    /// file/fifo for audio samples (f32le/8kHz/mono)
+    #[arg(short, long, required = true)]
+    audio: String,
+
+    /// tuner gain (use -g list to see all options)
+    #[arg(short, long, required = true)]
+    gain: String,
+
+    /// replay from baseband samples in FILE
+    #[arg(short, long)]
+    replay: Option<String>,
+
+    /// write baseband samples to FILE (f32le/48kHz/mono)
+    #[arg(short, long)]
+    write: Option<String>,
+
+    /// frequency for initial control channel (Hz)
+    #[arg(short, long, required = true)]
+    freq: u32,
+
+    /// rtlsdr device index (use -d list to show all)
+    #[arg(short, long)]
+    device: String,
+
+    /// HTTP socket bind address
+    #[arg(short, long, default_value = "0.0.0.0:8025")]
+    bind: String,
+
+    /// disable frequency hopping
+    #[arg(short, long)]
+    nohop: bool,
+
+    /// time (sec) to wait for voice message to be resumed
+    #[arg(short, long = "pause-timeout", default_value_t = 2.0)]
+    pause: f32,
+
+    /// time (sec) to wait for voice message to begin
+    #[arg(short, long = "watchdog-timeout", default_value_t = 2.0)]
+    watchdog: f32,
+
+    /// time (sec) to collect talkgrouops before making a selection
+    #[arg(short, long = "tgselect-timeout", default_value_t = 1.0)]
+    tgselect: f32,
+}
+
 fn main() -> Result<()> {
-    let args = App::new("p25rx")
-        .arg(
-            Arg::with_name("verbose")
-                .short("v")
-                .help("enable verbose logging (pass twice to be extra verbose)")
-                .multiple(true),
-        )
-        .arg(
-            Arg::with_name("ppm")
-                .short("p")
-                .help("ppm frequency adjustment")
-                .default_value("0")
-                .value_name("PPM"),
-        )
-        .arg(
-            Arg::with_name("audio")
-                .short("a")
-                .help("file/fifo for audio samples (f32le/8kHz/mono)")
-                .value_name("FILE"),
-        )
-        .arg(
-            Arg::with_name("gain")
-                .short("g")
-                .help("tuner gain (use -g list to see all options)")
-                .value_name("GAIN"),
-        )
-        .arg(
-            Arg::with_name("replay")
-                .short("r")
-                .help("replay from baseband samples in FILE")
-                .value_name("FILE"),
-        )
-        .arg(
-            Arg::with_name("write")
-                .short("w")
-                .help("write baseband samples to FILE (f32le/48kHz/mono)")
-                .value_name("FILE"),
-        )
-        .arg(
-            Arg::with_name("freq")
-                .short("f")
-                .help("frequency for initial control channel (Hz)")
-                .value_name("FREQ"),
-        )
-        .arg(
-            Arg::with_name("device")
-                .short("d")
-                .help("rtlsdr device index (use -d list to show all)")
-                .default_value("0")
-                .value_name("INDEX"),
-        )
-        .arg(
-            Arg::with_name("bind")
-                .short("b")
-                .help("HTTP socket bind address")
-                .default_value("0.0.0.0:8025")
-                .value_name("BIND"),
-        )
-        .arg(
-            Arg::with_name("nohop")
-                .short("n")
-                .long("nohop")
-                .help("disable frequency hopping"),
-        )
-        .arg(
-            Arg::with_name("pause")
-                .long("pause-timeout")
-                .help("time (sec) to wait for voice message to be resumed")
-                .default_value("2.0")
-                .value_name("TIME"),
-        )
-        .arg(
-            Arg::with_name("watchdog")
-                .long("watchdog-timeout")
-                .help("time (sec) to wait for voice message to begin")
-                .default_value("2.0")
-                .value_name("TIME"),
-        )
-        .arg(
-            Arg::with_name("tgselect")
-                .long("tgselect-timeout")
-                .help("time (sec) to collect talkgroups before making a selection")
-                .default_value("1.0")
-                .value_name("TIME"),
-        )
-        .get_matches();
+    let args = Args::parse();
 
     {
-        let level = match args.occurrences_of("verbose") {
+        let level = match args.verbose {
             0 => LevelFilter::Info,
             1 => LevelFilter::Debug,
             _ => LevelFilter::Trace,
@@ -175,7 +146,7 @@ fn main() -> Result<()> {
     }
 
     let audio_out = || {
-        let path = args.value_of("audio").expect("-a option is required");
+        let path = args.audio;
         info!("writing audio frames to {}", path);
 
         AudioOutput::new(BufWriter::new(
@@ -186,7 +157,7 @@ fn main() -> Result<()> {
         ))
     };
 
-    if let Some(path) = args.value_of("replay") {
+    if let Some(path) = args.replay {
         let mut stream = File::open(path).expect("unable to open replay file");
         let mut recv = ReplayReceiver::new(audio_out());
 
@@ -195,13 +166,11 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let ppm: i32 = args.value_of("ppm").unwrap().parse().expect("invalid ppm");
-
     let samples_file = args
-        .value_of("write")
+        .write
         .map(|path| File::create(path).expect("unable to open baseband file"));
 
-    let dev: u32 = match args.value_of("device").unwrap() {
+    let dev: u32 = match &args.device[..] {
         "list" => {
             for (idx, name) in rtlsdr_mt::devices().enumerate() {
                 println!("{}: {}", idx, name.to_str().unwrap());
@@ -215,7 +184,7 @@ fn main() -> Result<()> {
     info!("opening RTL-SDR at index {}", dev);
     let (mut control, reader) = rtlsdr_mt::open(dev).expect("unable to open rtlsdr");
 
-    match args.value_of("gain").expect("-g option is required") {
+    match &args.gain[..] {
         "list" => {
             let mut gains = TunerGains::default();
 
@@ -238,45 +207,17 @@ fn main() -> Result<()> {
         }
     }
 
-    let hopping = !args.is_present("nohop");
+    let pause = time_samples(args.pause);
+    let watchdog = time_samples(args.watchdog);
+    let tgselect = time_samples(args.tgselect);
 
-    let pause = time_samples(
-        args.value_of("pause")
-            .unwrap()
-            .parse()
-            .expect("invalid pause timeout"),
-    );
-    let watchdog = time_samples(
-        args.value_of("watchdog")
-            .unwrap()
-            .parse()
-            .expect("invalid watchdog timeout"),
-    );
-    let tgselect = time_samples(
-        args.value_of("tgselect")
-            .unwrap()
-            .parse()
-            .expect("invalid tgselect timeout"),
-    );
-
-    info!("setting frequency offset to {} PPM", ppm);
-    control.set_ppm(ppm).expect("unable to set ppm");
+    info!("setting frequency offset to {} PPM", args.ppm);
+    control.set_ppm(args.ppm).expect("unable to set ppm");
     control
         .set_sample_rate(SDR_SAMPLE_RATE)
         .expect("unable to set sample rate");
 
-    let freq: u32 = args
-        .value_of("freq")
-        .expect("-f option is required")
-        .parse()
-        .expect("invalid frequency");
-    info!("using control channel frequency {} Hz", freq);
-
-    let addr = args
-        .value_of("bind")
-        .unwrap()
-        .parse()
-        .expect("invalid bind address");
+    info!("using control channel frequency {} Hz", args.freq);
 
     let (tx_ctl, rx_ctl) = channel();
     let (tx_recv, rx_recv) = channel();
@@ -287,8 +228,8 @@ fn main() -> Result<()> {
     let policy = ReceiverPolicy::new(tgselect, watchdog, pause);
     let talkgroups = TalkgroupSelection::default();
 
-    info!("starting HTTP server at http://{}", addr);
-    let mut hub = HubTask::new(rx_hub, tx_recv.clone(), &addr)?;
+    info!("starting HTTP server at http://{}", args.bind);
+    let mut hub = HubTask::new(rx_hub, tx_recv.clone(), &args.bind.parse()?)?;
     let mut control = ControlTask::new(control, rx_ctl);
     let mut read = ReadTask::new(tx_read);
     let mut demod = DemodTask::new(rx_read, tx_hub.clone(), tx_recv.clone());
@@ -297,8 +238,8 @@ fn main() -> Result<()> {
         tx_hub.clone(),
         tx_ctl.clone(),
         tx_audio.clone(),
-        freq,
-        hopping,
+        args.freq,
+        !args.nohop,
         policy,
         talkgroups,
     );

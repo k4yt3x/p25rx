@@ -11,7 +11,7 @@ anyhow = "1.0"
 arrayvec = "0.3"
 chan = "0.1"
 chrono = "0.2"
-clap = "2.12"
+clap = { version = "4.0", features = ["derive"] }
 collect_slice = "1.2"
 crossbeam = "0.2"
 demod_fm = "1.0"
@@ -53,3 +53,4 @@ throttle = { version = "1.0.0", git = "https://github.com/k4yt3x/throttle.rs" }
 
 [profile.release]
 panic = "abort"
+lto = true
