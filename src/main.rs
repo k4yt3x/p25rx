@@ -84,7 +84,7 @@ struct Args {
     verbose: u8,
 
     /// ppm frequency adjustment
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = 0)]
     ppm: i32,
 
     /// file/fifo for audio samples (f32le/8kHz/mono)
@@ -108,7 +108,7 @@ struct Args {
     freq: u32,
 
     /// rtlsdr device index (use -d list to show all)
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "0")]
     device: String,
 
     /// HTTP socket bind address
