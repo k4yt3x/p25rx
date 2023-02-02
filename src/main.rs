@@ -46,6 +46,7 @@ extern crate uhttp_version;
 use std::{
     fs::{File, OpenOptions},
     io::{BufWriter, Write},
+    path::Path,
     sync::mpsc::channel,
 };
 
@@ -149,6 +150,23 @@ fn main() -> Result<()> {
         let path = args.audio;
         info!("writing audio frames to {}", path);
 
+        // Create audio file if it does not exist.
+        match Path::new(&path).exists() {
+            true => {
+                info!("File {path} already exists, no need to create it.");
+            }
+            false => {
+                match File::create(&path) {
+                    Ok(_) => {
+                        info!("File {path} created, ready to use.");
+                    }
+                    Err(e) => {
+                        panic!("Unable to create file {path} due to error: {e}");
+                    }
+                }
+            }
+        };
+        
         AudioOutput::new(BufWriter::new(
             OpenOptions::new()
                 .write(true)
