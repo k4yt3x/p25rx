@@ -150,23 +150,25 @@ fn main() -> Result<()> {
         let path = args.audio;
         info!("writing audio frames to {}", path);
 
-        // Create audio file if it does not exist.
+        // Create audio fifo if it does not already exist.
         match Path::new(&path).exists() {
             true => {
                 info!("File {path} already exists, no need to create it.");
             }
             false => {
-                match File::create(&path) {
-                    Ok(_) => {
-                        info!("File {path} created, ready to use.");
-                    }
-                    Err(e) => {
-                        panic!("Unable to create file {path} due to error: {e}");
+                unsafe {
+                    match libc::mkfifo(path.as_ptr() as *const c_char, 0o644) {
+                        0 => {
+                            info!("File {path} created, ready to use.");
+                        }
+                        _ => {
+                            panic!("Unable to create fifo {path}.");
+                        }
                     }
                 }
             }
         };
-        
+
         AudioOutput::new(BufWriter::new(
             OpenOptions::new()
                 .write(true)
