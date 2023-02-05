@@ -46,6 +46,7 @@ extern crate uhttp_version;
 use std::{
     fs::{File, OpenOptions},
     io::{BufWriter, Write},
+    path::Path,
     sync::mpsc::channel,
 };
 
@@ -148,6 +149,25 @@ fn main() -> Result<()> {
     let audio_out = || {
         let path = args.audio;
         info!("writing audio frames to {}", path);
+
+        // Create audio fifo if it does not already exist.
+        match Path::new(&path).exists() {
+            true => {
+                info!("File {path} already exists, no need to create it.");
+            }
+            false => {
+                unsafe {
+                    match libc::mkfifo(path.as_ptr() as *const c_char, 0o644) {
+                        0 => {
+                            info!("File {path} created, ready to use.");
+                        }
+                        _ => {
+                            panic!("Unable to create fifo {path}.");
+                        }
+                    }
+                }
+            }
+        };
 
         AudioOutput::new(BufWriter::new(
             OpenOptions::new()
