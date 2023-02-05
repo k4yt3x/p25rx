@@ -155,18 +155,16 @@ fn main() -> Result<()> {
             true => {
                 info!("File {path} already exists, no need to create it.");
             }
-            false => {
-                unsafe {
-                    match libc::mkfifo(path.as_ptr() as *const c_char, 0o644) {
-                        0 => {
-                            info!("File {path} created, ready to use.");
-                        }
-                        _ => {
-                            panic!("Unable to create fifo {path}.");
-                        }
+            false => unsafe {
+                match libc::mkfifo(path.as_ptr() as *const c_char, 0o644) {
+                    0 => {
+                        info!("File {path} created, ready to use.");
+                    }
+                    _ => {
+                        panic!("Unable to create fifo {path}.");
                     }
                 }
-            }
+            },
         };
 
         AudioOutput::new(BufWriter::new(
